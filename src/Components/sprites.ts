@@ -33,6 +33,7 @@ export type spriteObject = {
   angle: number;
   currentSequence?: string;
   anchor: Vector;
+  fit: string;
 };
 
 // this is the exported interface that is used in systems modules
@@ -54,12 +55,11 @@ export class SpritesComp extends Component {
         height: 100%;
         display: block;
         image-rendering: pixelated;
-        background-size: cover;
         background-repeat: no-repeat;
       }
     </style>
     <sprite-layers style="position: relative">
-      <sprite-layer \${sprite<=*value} style="transform-origin: \${sprite.anchor.x}px \${sprite.anchor.y}px; width: \${sprite.size.x}px; height: \${sprite.size.y}px; top: \${sprite.offset.y}px;left: \${sprite.offset.x}px;background-image: url(\${sprite.src}); background-position: -\${sprite.position.x}px \${sprite.position.y}px; transform: rotate(\${sprite.angle}deg); "></sprite-layer>
+      <sprite-layer \${sprite<=*value} style="transform-origin: \${sprite.anchor.x}px \${sprite.anchor.y}px; width: \${sprite.size.x}px; height: \${sprite.size.y}px; top: \${sprite.offset.y}px;left: \${sprite.offset.x}px;background-image: url(\${sprite.src}); background-position: -\${sprite.position.x}px \${sprite.position.y}px; transform: rotate(\${sprite.angle}deg);  background-size: \${sprite.fit}; "></sprite-layer>
     </sprite-layers>
     `;
 
@@ -87,6 +87,7 @@ export class SpritesComp extends Component {
         offset: new Vector(sprite.offset[0], sprite.offset[1]),
         angle: sprite.angle,
         anchor: new Vector(sprite.anchor.x, sprite.anchor.y),
+        fit: sprite.fit,
       };
 
       if (sprite.animation) {

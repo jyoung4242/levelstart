@@ -6,8 +6,11 @@
 //  [new Name(),... and all your other components follow]
 // }
 
+import { ColliderComp } from "./collider";
+import { KeyboardComp } from "./keyboard";
 import { Name } from "./nameComp";
 import { OrientationComp } from "./orientation";
+import { ColorComp } from "./playerColor";
 import { Position } from "./positionComp";
 import { SizeComp } from "./sizeComp";
 import { SpritesComp } from "./sprites";
@@ -28,5 +31,8 @@ export function LoadComponents() {
     new Velocity(),
     new OrientationComp(),
     new Name(),
+    new ColorComp(),
+    new KeyboardComp(),
+    new ColliderComp(),
   ];
 }

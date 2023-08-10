@@ -3,6 +3,8 @@ import { Scene } from "../../_SqueletoECS/Scene";
 import { Vector } from "../../_SqueletoECS/Vector";
 import { Engine } from "@peasy-lib/peasy-engine";
 
+import tileset from "../Assets/mytileset.png";
+import { Box, Circle, System as dcSystem } from "detect-collisions";
 // Scene Systems
 /* *README*
   You will import all your  ECS Systems here for this scene here
@@ -12,15 +14,21 @@ import { Engine } from "@peasy-lib/peasy-engine";
   ... you're welcome ;)
 */
 import { Camera, ICameraConfig } from "../../_SqueletoECS/Camera"; //this is in Squeleto library
-import { TemplateComp } from "../Components/templateComponent";
-
-import tileset from "../Assets/mytileset.png";
+import { KeypressSystem } from "../Systems/keypress";
+import { animateSpriteSystem } from "../Systems/animateSprite";
+import { movementSystem } from "../Systems/movement";
 
 // Entities
-import { TemplateEntity } from "../Entities/entityTemplate";
 import { MapEntity } from "../Entities/map";
 import { PlayerEntity } from "../Entities/player";
 import { LevelMaker } from "../levelmaker";
+import { GeneratorEntity } from "../Entities/monsterGenerator";
+import { tokenEntity } from "../Entities/token";
+import { BoostEntity } from "../Entities/powerup";
+import { ColliderSystem } from "../Systems/collider";
+
+export type myCollider = (Box & { cat?: string }) | (Circle & { cat?: string });
+
 /* *README*
   You will import all your  ECS entities for this scene here
   for example
@@ -38,30 +46,121 @@ export class Test extends Scene {
     </scene-layer>
   `;
   public init = async (): Promise<void> => {
+    //setup collision system
+    const dc = new dcSystem();
+
     // add default entities to the array
-    const lm = new LevelMaker(64, 64, 16);
-    lm.generateNewMap();
-    await lm.loadTileset(tileset);
-    await lm.loadTileDefinition(setMapping());
-    await lm.loadBitmasks(setBitmappings());
-    lm.setZeroTiles(["dirt1", "dirt2", "dirt3", "dirt4", "dirt5"]);
-    lm.fillMap("dirt1");
-    lm.loadRandomObjectTiles(setRandomTiles());
-    lm.setBaseTiles();
-    lm.drawRandomTiles(0);
-    const mapImage = await lm.getMapImage();
-    let { x, y } = lm.getMapImageSize();
+    let startArray;
+    let mapImage;
+    let x, y;
+    let downflag = false;
+    let longflag = false;
+    let lm;
+    let arrayOfRandomObjects;
+    do {
+      lm = new LevelMaker(64, 64, 16);
+      lm.generateNewMap();
+      await lm.loadTileset(tileset);
+      await lm.loadTileDefinition(setMapping());
+      await lm.loadBitmasks(setBitmappings());
+      lm.setZeroTiles(["dirt1", "dirt2", "dirt3", "dirt4", "dirt5"]);
+      lm.fillMap("dirt1");
+      lm.loadRandomObjectTiles(setRandomTiles());
+      lm.setBaseTiles();
+      arrayOfRandomObjects = lm.drawRandomTiles(0);
+      mapImage = await lm.getMapImage();
+      x = lm.getMapImageSize().x;
+      y = lm.getMapImageSize().y;
+
+      startArray = findPattern(lm.maze, [
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+      ]);
+
+      if (startArray == null) {
+        startArray = findPattern(lm.maze, [
+          [0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0],
+        ]);
+        if (startArray != null) longflag = true;
+      } else downflag = true;
+    } while (startArray == null);
+
+    //find starting point
+
+    let startingPoint: Vector;
+    let startingPoint2: Vector;
+    let startingPoint3: Vector;
+    let startingPoint4: Vector;
+
+    let playerArray = [];
+    if (startArray && startArray.length == 2) {
+      if (downflag) {
+        startingPoint = new Vector((startArray[0] + 1) * lm.tilesize, (startArray[1] + 1) * lm.tilesize);
+        playerArray.push([startArray[0] + 1, startArray[1] + 1]);
+        startingPoint2 = new Vector((startArray[0] + 2) * lm.tilesize, (startArray[1] + 1) * lm.tilesize);
+        playerArray.push([startArray[0] + 2, startArray[1] + 1]);
+        startingPoint3 = new Vector((startArray[0] + 1) * lm.tilesize, (startArray[1] + 2) * lm.tilesize);
+        playerArray.push([startArray[0] + 1, startArray[1] + 2]);
+        startingPoint4 = new Vector((startArray[0] + 2) * lm.tilesize, (startArray[1] + 2) * lm.tilesize);
+        playerArray.push([startArray[0] + 2, startArray[1] + 2]);
+      } else if (longflag) {
+        startingPoint = new Vector((startArray[0] + 1) * lm.tilesize, (startArray[1] + 1) * lm.tilesize);
+        playerArray.push([startArray[0] + 1, startArray[1] + 1]);
+        startingPoint2 = new Vector((startArray[0] + 2) * lm.tilesize, (startArray[1] + 1) * lm.tilesize);
+        playerArray.push([startArray[0] + 2, startArray[1] + 1]);
+        startingPoint3 = new Vector((startArray[0] + 3) * lm.tilesize, (startArray[1] + 1) * lm.tilesize);
+        playerArray.push([startArray[0] + 3, startArray[1] + 1]);
+        startingPoint4 = new Vector((startArray[0] + 4) * lm.tilesize, (startArray[1] + 1) * lm.tilesize);
+        playerArray.push([startArray[0] + 4, startArray[1] + 1]);
+      }
+    }
+
+    //add map tiles to collision system
+    const colliderTiles = findEdgeCoordinates(lm.maze);
+    console.log("edge tiles: ", colliderTiles);
+
+    addTilesToCollisionSystem(colliderTiles, dc, lm);
+
+    //Find random spots for power ups
+    //2 monster generators
+    //4 tokens
+    //4 health jewels
+
+    let exclusionArrayOfCoors = [...playerArray, ...arrayOfRandomObjects];
+    const randomCoords = selectRandomCoordinates(lm.maze, 2, 10, exclusionArrayOfCoors);
+    /* console.log("player coords", playerArray);
+    console.log("exclusion coords", exclusionArrayOfCoors);
+    console.log("random coords", randomCoords); */
 
     this.entities.push(await MapEntity.create(mapImage, x, y));
 
-    //find starting point
-    let startArray = findElementIn2DArray(lm.maze, 0);
-    let startingPoint: Vector;
+    //@ts-ignore
+    this.entities.push(PlayerEntity.create(startingPoint, "Mookie", true, "red", dc));
 
-    if (startArray && startArray.length == 2) {
-      startingPoint = new Vector((startArray[0] + 1) * lm.tilesize, (startArray[1] + 1) * lm.tilesize);
-      this.entities.push(PlayerEntity.create(startingPoint));
-    }
+    //@ts-ignore
+    this.entities.push(PlayerEntity.create(startingPoint2, "Curly", false, "purple", dc));
+    //@ts-ignore
+    this.entities.push(PlayerEntity.create(startingPoint3, "Larry", false, "orange", dc));
+    //@ts-ignore
+    this.entities.push(PlayerEntity.create(startingPoint4, "Moe", false, "lightgreen", dc));
+
+    //monster generators
+    this.entities.push(GeneratorEntity.create(new Vector(randomCoords[0][0] * lm.tilesize, randomCoords[0][1] * lm.tilesize), dc));
+    this.entities.push(GeneratorEntity.create(new Vector(randomCoords[1][0] * lm.tilesize, randomCoords[1][1] * lm.tilesize), dc));
+
+    //tokens
+    this.entities.push(tokenEntity.create(new Vector(randomCoords[2][0] * lm.tilesize, randomCoords[2][1] * lm.tilesize), "a", dc));
+    this.entities.push(tokenEntity.create(new Vector(randomCoords[3][0] * lm.tilesize, randomCoords[3][1] * lm.tilesize), "d", dc));
+    this.entities.push(tokenEntity.create(new Vector(randomCoords[4][0] * lm.tilesize, randomCoords[4][1] * lm.tilesize), "g", dc));
+    this.entities.push(tokenEntity.create(new Vector(randomCoords[5][0] * lm.tilesize, randomCoords[5][1] * lm.tilesize), "r", dc));
+
+    //health boosts
+    this.entities.push(BoostEntity.create(new Vector(randomCoords[6][0] * lm.tilesize, randomCoords[6][1] * lm.tilesize), dc));
+    this.entities.push(BoostEntity.create(new Vector(randomCoords[7][0] * lm.tilesize, randomCoords[7][1] * lm.tilesize), dc));
+    this.entities.push(BoostEntity.create(new Vector(randomCoords[8][0] * lm.tilesize, randomCoords[8][1] * lm.tilesize), dc));
+    this.entities.push(BoostEntity.create(new Vector(randomCoords[9][0] * lm.tilesize, randomCoords[9][1] * lm.tilesize), dc));
 
     console.log(this.entities);
 
@@ -71,19 +170,17 @@ export class Test extends Scene {
       viewPortSystems: [],
       gameEntities: this.entities,
       position: new Vector(0, 0),
-      size: new Vector(400, 266.67),
+      size: new Vector(x, y),
     };
     let camera = Camera.create(cConfig);
-    console.log(camera);
-    console.log();
-
     camera.follow(this.entities[1]);
+    camera.vpSystems.push(new animateSpriteSystem(), new KeypressSystem(), new movementSystem(), new ColliderSystem(dc, camera));
 
-    //give the camera its systems to own
-    //camera.vpSystems.push(new KeyboardSystem(), new MovementSystem());
+    console.log(camera.vpSystems);
 
     //Systems being added for Scene to own
     this.sceneSystems.push(camera);
+    console.log("system data", dc.data);
 
     //Start GameLoop
     Engine.create({ fps: 60, started: true, callback: this.update });
@@ -392,13 +489,124 @@ function setRandomTiles() {
   ];
 }
 
-function findElementIn2DArray<T>(array: T[][], searchValue: T): undefined | Array<number> {
-  for (let row = 0; row < array.length; row++) {
-    for (let col = 0; col < array[row].length; col++) {
-      if (array[row][col] === searchValue) {
+function findPattern(matrix: number[][], pattern: number[][]): [number, number] | null {
+  const rows = matrix.length;
+  const cols = matrix[0].length;
+  const patternRows = pattern.length;
+  const patternCols = pattern[0].length;
+
+  function isPatternMatch(row: number, col: number): boolean {
+    for (let r = 0; r < patternRows; r++) {
+      for (let c = 0; c < patternCols; c++) {
+        if (matrix[row + r][col + c] !== pattern[r][c]) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  for (let row = 0; row <= rows - patternRows; row++) {
+    for (let col = 0; col <= cols - patternCols; col++) {
+      if (isPatternMatch(row, col)) {
         return [row, col];
       }
     }
   }
-  return undefined; // Search value not found
+
+  return null;
+}
+// Function to select multiple coordinates with value 0 from a 2D array
+function selectRandomCoordinates(
+  array: number[][],
+  homogeneityFactor: number,
+  quantity: number,
+  excludeCoordinates: [number, number][]
+): [number, number][] {
+  const flatCoordinates: [number, number][] = [];
+
+  for (let row = 0; row < array.length; row++) {
+    for (let col = 0; col < array[row].length; col++) {
+      if (array[row][col] === 0) {
+        flatCoordinates.push([row, col]);
+      }
+    }
+  }
+
+  const filteredCoordinates = flatCoordinates.filter(coord => {
+    return !excludeCoordinates.some(excludeCoord => coord[0] === excludeCoord[0] && coord[1] === excludeCoord[1]);
+  });
+
+  const selectedCoordinates: [number, number][] = [];
+
+  for (let i = 0; i < quantity; i++) {
+    if (filteredCoordinates.length === 0) {
+      break; // No more available coordinates with value 0
+    }
+
+    const shuffledCoordinates = shuffleArray(filteredCoordinates);
+    const selectedIndex = Math.floor(Math.pow(Math.random(), homogeneityFactor) * shuffledCoordinates.length);
+    selectedCoordinates.push(shuffledCoordinates[selectedIndex]);
+    filteredCoordinates.splice(filteredCoordinates.indexOf(shuffledCoordinates[selectedIndex]), 1);
+  }
+
+  return selectedCoordinates;
+}
+
+// Function to shuffle an array using Fisher-Yates algorithm
+function shuffleArray<T>(array: T[]): T[] {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+type Coordinate = [number, number];
+
+function findEdgeCoordinates(matrix: number[][]): Coordinate[] {
+  const rows = matrix.length;
+  const cols = matrix[0].length;
+
+  const edgeCoordinates: Coordinate[] = [];
+
+  const isOutOfBounds = (row: number, col: number): boolean => {
+    return row < 0 || col < 0 || row >= rows || col >= cols;
+  };
+
+  const isEdgeCoordinate = (row: number, col: number): boolean => {
+    //console.log("edge check: ", row, col, matrix[row][col]);
+
+    if (matrix[row][col] === 255) {
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          if ((dx !== 0 || dy !== 0) && !isOutOfBounds(row + dx, col + dy) && matrix[row + dx][col + dy] === 0) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  };
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      if (isEdgeCoordinate(row, col)) {
+        edgeCoordinates.push([row, col]);
+      }
+    }
+  }
+
+  return edgeCoordinates;
+}
+
+function addTilesToCollisionSystem(tiles: Coordinate[], collider: dcSystem, level: any): void {
+  tiles.forEach(tile => {
+    let tileCollider: myCollider = new Box({ x: level.tilesize * tile[0] + 8, y: level.tilesize * tile[1] + 8 }, 10, 10, {
+      isCentered: true,
+      isStatic: true,
+    });
+    tileCollider.cat = "wall";
+    collider.insert(tileCollider);
+  });
 }

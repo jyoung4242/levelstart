@@ -1,5 +1,6 @@
 import { Vector } from "./Vector";
 import { Entity } from "./entity";
+//@ts-ignore
 import object from "lodash/fp";
 
 type CameraFocus = {
@@ -21,6 +22,7 @@ export class Camera {
   lerpDelay: number = 0;
   lerpUpdateInterval: number = 100;
   lerpStartVector: Vector;
+  //@ts-ignore
   lerpHandle: NodeJS.Timer | undefined;
   lerpPercent: number = 0;
   cameraFocus: CameraFocus;
@@ -108,8 +110,14 @@ export class Camera {
     return new Camera(config.name, config.gameEntities, config.viewPortSystems, config.position, config.size);
   }
 
+  public setCameraSize(newSize: Vector) {
+    this.size = newSize;
+  }
+
   public update(deltaTime: number) {
-    this.vpSystems.forEach(vps => vps.update(deltaTime / 1000, 0, this.entities));
+    this.vpSystems.forEach(vps => {
+      vps.update(deltaTime / 1000, 0, this.entities);
+    });
     //camera position update
 
     if (this.cameraFocus.mode == "point") {

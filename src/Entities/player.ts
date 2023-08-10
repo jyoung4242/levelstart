@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { Entity } from "../../_SqueletoECS/entity";
+import { System as dcSystem } from "detect-collisions";
 
 import steps from "../Assets/testwalk-Sheet.png";
 import topsprite from "../Assets/uppersprite.png";
@@ -39,13 +40,37 @@ const muzzleflash = {
 };
 
 export class PlayerEntity {
-  static create(startingPosition: Vector) {
+  static create(startingPosition: Vector, name: string, localControl: boolean, playercolor: string, collision: dcSystem) {
     return Entity.create({
       id: uuidv4(),
       components: {
+        type: { data: "player" },
         orientation: 0,
-        name: "Mookie",
+        color: {
+          data: {
+            color: playercolor,
+            width: 16,
+            height: 16,
+          },
+        },
+        collider: {
+          data: {
+            system: collision,
+            shape: "Box",
+            size: new Vector(12, 12),
+            position: new Vector(startingPosition.x, startingPosition.y),
+            options: {
+              triggered: false,
+              static: false,
+              centered: true,
+            },
+            type: "player",
+          },
+        },
+        keyboard: { data: localControl },
+        name: name,
         position: startingPosition,
+        velocity: new Vector(0, 0),
         zindex: 2,
         size: { data: [16, 16] },
         sprites: [
@@ -53,24 +78,27 @@ export class PlayerEntity {
             src: steps,
             size: [16, 16],
             angle: 0,
-            offset: [-16, -16], //centers on entity
+            offset: [-8, -8], //centers on entity
             animation: walkAnimationSequence,
             anchor: new Vector(8, 16),
+            fit: "cover",
           },
           {
             src: topsprite,
             size: [16, 16],
             angle: 0,
-            offset: [-16, -16], //centers on entity
+            offset: [-8, -8], //centers on entity
             anchor: new Vector(8, 16),
+            fit: "cover",
           },
           {
             src: flash,
             size: [32, 32],
             angle: 0,
-            offset: [-32, -32], //centers on entity
+            offset: [-16, -16], //centers on entity
             animation: muzzleflash,
             anchor: new Vector(24, 32),
+            fit: "cover",
           },
         ],
       },

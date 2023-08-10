@@ -18,6 +18,7 @@
         "@peasy-lib/peasy-states": "latest",
         "@peasy-lib/peasy-ui": "latest",
         "chance": "^1.1.11",
+        "detect-collisions": "^9.1.1",
         "lodash": "latest",
         "uuid": "latest"
     },

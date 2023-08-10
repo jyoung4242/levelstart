@@ -16,13 +16,14 @@ export class Name extends Component {
       .name-component {
         color: red;
         position: absolute;
-        font-size: 5px;
+        font-size: 6px;
         font-weight: bold;
         width: 50px;
         height: 16px;
-        top: -22px;
-        left: -36px;
+        top: -16px;
+        left: -26px;
         text-align: center;
+        zIndex: 3;
       }
     </style>
     <div class="name-component">\${value}</div>

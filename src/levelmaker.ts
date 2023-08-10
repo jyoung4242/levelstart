@@ -284,6 +284,7 @@ export class LevelMaker {
     let percentTile = Math.floor((count / this.numTilesInMaze) * 100);
     const randomObjectsArray = this.getRandomEntriesFromMap(percentTile * RANDOM_OBJECT_FACTOR, tileMap);
     this.drawObjectFromArray(randomObjectsArray);
+    return randomObjectsArray;
   }
 
   getRandomEntriesFromMap(quantity: number, map: Map<any, any>): Array<any> {
